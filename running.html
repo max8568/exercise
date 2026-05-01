@@ -433,7 +433,7 @@
   <div class="col-labels">
     <span class="col-label">日期時間</span>
     <span class="col-label" id="col-dist-label">距離(m)</span>
-    <span class="col-label">時間(MM:SS.cc)</span>
+    <span class="col-label" id="col-time-label">時間(MM:SS.cc)</span>
     <span class="col-label" id="col-metric-label">配速</span>
   </div>
 
@@ -464,13 +464,13 @@
       <input type="number" id="input-mm" class="time-part" placeholder="MM" min="0" inputmode="numeric">
       <span class="time-sep">:</span>
       <input type="number" id="input-ss" class="time-part" placeholder="SS" min="0" max="59" inputmode="numeric">
-      <span class="time-sep">.</span>
+      <span class="time-sep" id="time-sep-2">.</span>
       <input type="number" id="input-cc" class="time-part" placeholder="cc" min="0" max="99" inputmode="numeric">
     </div>
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.02-2</div>
+  <div class="version-tag">v2026.05.02-3</div>
 </footer>
 
 <script>
@@ -492,6 +492,9 @@ const TAB_CONFIG = {
     colDistLabel: '距離(m)',
     colMetricLabel: '配速',
     sheetsTab: 'running',
+    timeFmt: 'mmsscc',
+    timeColLabel: '時間(MM:SS.cc)',
+    t1ph: 'MM', t2ph: 'SS', t3ph: 'cc', sep2: '.',
   },
   bike: {
     storageKey: 'bike-records',
@@ -507,6 +510,9 @@ const TAB_CONFIG = {
     colDistLabel: '距離(km)',
     colMetricLabel: '速度',
     sheetsTab: 'bike',
+    timeFmt: 'hhmmss',
+    timeColLabel: '時間(HH:MM:SS)',
+    t1ph: 'HH', t2ph: 'MM', t3ph: 'SS', sep2: ':',
   }
 };
 
@@ -538,9 +544,28 @@ function formatTimeMs(ms) {
   return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}.${String(cc).padStart(2,'0')}`;
 }
 
-// mm/ss/cc strings → total ms
+// ms → "HH:MM:SS"
+function formatTimeMsHMS(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const ss = totalSec % 60;
+  const totalMin = Math.floor(totalSec / 60);
+  const mm = totalMin % 60;
+  const hh = Math.floor(totalMin / 60);
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+function formatTime(ms) {
+  return cfg().timeFmt === 'hhmmss' ? formatTimeMsHMS(ms) : formatTimeMs(ms);
+}
+
+// Running (MM/SS/cc) → ms
 function parseDuration(mm, ss, cc) {
   return ((parseInt(mm)||0) * 60 + (parseInt(ss)||0)) * 1000 + (parseInt(cc)||0) * 10;
+}
+
+// Bike (HH/MM/SS) → ms
+function parseDurationHMS(hh, mm, ss) {
+  return ((parseInt(hh)||0) * 3600 + (parseInt(mm)||0) * 60 + (parseInt(ss)||0)) * 1000;
 }
 
 // Running: ms elapsed, m distance → "M'SS"/km"
@@ -582,6 +607,7 @@ function renderRecords() {
   document.getElementById('stat-metric-label').textContent = c.statMetricLabel;
   document.getElementById('col-dist-label').textContent    = c.colDistLabel;
   document.getElementById('col-metric-label').textContent  = c.colMetricLabel;
+  document.getElementById('col-time-label').textContent    = c.timeColLabel;
 
   list.innerHTML = '';
   empty.style.display = records.length ? 'none' : 'block';
@@ -607,7 +633,7 @@ function renderRecords() {
       <div class="record-inner">
         <span class="record-date">${fmtDate(r.date)}</span>
         <span class="record-dist">${distStr}</span>
-        <span class="record-time">${formatTimeMs(r.ms)}</span>
+        <span class="record-time">${formatTime(r.ms)}</span>
         <span class="record-pace">${metricStr}</span>
       </div>
       <button class="delete-btn-desktop" onclick="confirmDelete(${r.id})" title="刪除">×</button>
@@ -633,7 +659,9 @@ function addRecord() {
     : parseInt(distEl.value);
   if (!distEl.value || isNaN(dist) || dist <= 0) { flash(distEl); valid = false; }
 
-  const ms = parseDuration(mmEl.value, ssEl.value, ccEl.value);
+  const ms = cfg().timeFmt === 'hhmmss'
+    ? parseDurationHMS(mmEl.value, ssEl.value, ccEl.value)
+    : parseDuration(mmEl.value, ssEl.value, ccEl.value);
   if (ms <= 0) { flash(mmEl); flash(ssEl); flash(ccEl); valid = false; }
 
   if (!valid) return;
@@ -806,6 +834,12 @@ function switchTab(tab) {
   renderPresets();
   setPreset(c.defaultPreset);
 
+  // Time inputs
+  document.getElementById('input-mm').placeholder = c.t1ph;
+  document.getElementById('input-ss').placeholder = c.t2ph;
+  document.getElementById('input-cc').placeholder = c.t3ph;
+  document.getElementById('time-sep-2').textContent = c.sep2;
+
   // Reset stopwatch
   swReset();
 
@@ -824,7 +858,7 @@ function swGetElapsed() {
 }
 
 function swUpdateDisplay() {
-  document.getElementById('sw-display').textContent = formatTimeMs(swGetElapsed());
+  document.getElementById('sw-display').textContent = formatTime(swGetElapsed());
 }
 
 function swStartStop() {
@@ -860,14 +894,25 @@ function swReset() {
 
 function swFill() {
   const total = swGetElapsed();
-  const totalCs = Math.floor(total / 10);
-  const cc = totalCs % 100;
-  const totalSec = Math.floor(totalCs / 100);
-  const ss = totalSec % 60;
-  const mm = Math.floor(totalSec / 60);
-  document.getElementById('input-mm').value = String(mm).padStart(2,'0');
-  document.getElementById('input-ss').value = String(ss).padStart(2,'0');
-  document.getElementById('input-cc').value = String(cc).padStart(2,'0');
+  if (cfg().timeFmt === 'hhmmss') {
+    const totalSec = Math.floor(total / 1000);
+    const ss = totalSec % 60;
+    const totalMin = Math.floor(totalSec / 60);
+    const mm = totalMin % 60;
+    const hh = Math.floor(totalMin / 60);
+    document.getElementById('input-mm').value = String(hh).padStart(2,'0');
+    document.getElementById('input-ss').value = String(mm).padStart(2,'0');
+    document.getElementById('input-cc').value = String(ss).padStart(2,'0');
+  } else {
+    const totalCs = Math.floor(total / 10);
+    const cc = totalCs % 100;
+    const totalSec = Math.floor(totalCs / 100);
+    const ss = totalSec % 60;
+    const mm = Math.floor(totalSec / 60);
+    document.getElementById('input-mm').value = String(mm).padStart(2,'0');
+    document.getElementById('input-ss').value = String(ss).padStart(2,'0');
+    document.getElementById('input-cc').value = String(cc).padStart(2,'0');
+  }
 }
 
 // ===== Google Sheets Integration =====
