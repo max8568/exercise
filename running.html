@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>跑步記錄</title>
+<style>
+  :root {
+    --bg:          #f0f4ff;
+    --primary:     #1565c0;
+    --primary-dk:  #0d47a1;
+    --border:      #bbdefb;
+    --badge-bg:    #e3f2fd;
+    --badge-text:  #0d47a1;
+    --danger:      #c0392b;
+    --text:        #2d2d2d;
+    --muted:       #888;
+    --card-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 280px;
+  }
+
+  /* ===== HEADER ===== */
+  .site-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dk) 100%);
+    color: white;
+    padding: 10px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-top { display: flex; align-items: center; gap: 12px; }
+  .run-icon { font-size: 2rem; }
+  .header-top h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; }
+  .header-top .subtitle { font-size: 0.875rem; opacity: 0.85; margin-top: 2px; }
+
+  /* ===== MAIN ===== */
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px 0; }
+
+  /* ===== STATS BAR ===== */
+  .stats-bar {
+    display: flex;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    border-right: 1px solid var(--border);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-value { display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
+  .stat-label { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+
+  /* ===== RECORDS LIST ===== */
+  .records-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .record-row {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+  .delete-bg {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 72px;
+    background: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .delete-bg-btn {
+    background: none; border: none;
+    color: white; font-size: 1.3rem;
+    width: 100%; height: 100%;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .record-inner {
+    display: grid;
+    grid-template-columns: 96px 60px 1fr 1fr;
+    align-items: center;
+    gap: 4px;
+    padding: 13px 16px;
+    background: white;
+    position: relative;
+    z-index: 1;
+    transition: transform 0.22s ease;
+    cursor: default;
+    user-select: none;
+  }
+  .record-date { font-size: 0.82rem; color: var(--muted); }
+  .record-dist { font-size: 1rem; font-weight: 600; color: var(--primary); }
+  .record-time { font-size: 0.88rem; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+  .record-pace { font-size: 0.78rem; text-align: right; color: var(--muted); }
+  .delete-btn-desktop {
+    display: none;
+    position: absolute;
+    right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none;
+    color: var(--danger); font-size: 1.1rem;
+    cursor: pointer; padding: 6px; line-height: 1;
+    z-index: 2;
+  }
+  @media (hover: hover) {
+    .record-row:hover .delete-btn-desktop { display: block; }
+    .record-row:hover .record-inner { grid-template-columns: 96px 60px 1fr calc(1fr - 28px); }
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state { text-align: center; color: var(--muted); padding: 48px 20px; font-size: 0.9rem; }
+
+  /* ===== COLUMN LABELS ===== */
+  .col-labels {
+    display: grid;
+    grid-template-columns: 96px 60px 1fr 1fr;
+    padding: 0 16px;
+    margin-bottom: 6px;
+    gap: 4px;
+  }
+  .col-label { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.04em; }
+  .col-label:nth-child(3) { text-align: center; }
+  .col-label:last-child   { text-align: right; }
+
+  /* ===== BOTTOM INPUT PANEL ===== */
+  .input-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+
+  /* --- Stopwatch row --- */
+  .stopwatch-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .sw-display {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+    letter-spacing: 0.02em;
+    min-width: 96px;
+    font-feature-settings: "tnum";
+  }
+  .sw-btn {
+    height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid var(--primary);
+    border-radius: 8px;
+    background: white;
+    color: var(--primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .sw-btn:active { background: var(--badge-bg); }
+  .sw-btn.running { background: var(--primary); color: white; }
+  .sw-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* --- Row 1: date + distance --- */
+  .field-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .input-field {
+    height: 46px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    width: 100%;
+  }
+  .input-field:focus { border-color: var(--primary); }
+  .input-field.invalid { border-color: var(--danger); animation: shake 0.3s ease; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-5px); }
+    75%      { transform: translateX(5px); }
+  }
+
+  .input-date { flex: 1.6; min-width: 0; }
+  .input-distance { flex: 1; min-width: 0; text-align: center; }
+  .input-distance::-webkit-inner-spin-button,
+  .input-distance::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .input-distance { -moz-appearance: textfield; }
+
+  /* --- Row 2: presets --- */
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 8px;
+  }
+  .preset-row::-webkit-scrollbar { display: none; }
+  .preset-btn {
+    flex: 1;
+    min-width: 52px;
+    height: 36px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .preset-btn:active, .preset-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  /* --- Row 3: time + add button --- */
+  .time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .time-group {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+  }
+  .time-part {
+    flex: 1;
+    min-width: 0;
+    height: 46px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    outline: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+    padding: 0;
+    transition: border-color 0.15s;
+  }
+  .time-part::-webkit-inner-spin-button,
+  .time-part::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .time-part:focus { border-color: var(--primary); }
+  .time-part.invalid { border-color: var(--danger); animation: shake 0.3s ease; }
+  .time-sep { font-weight: 700; color: var(--muted); font-size: 1.1rem; line-height: 46px; padding: 0 1px; flex-shrink: 0; }
+
+  /* Add button */
+  .add-btn {
+    width: 54px;
+    height: 46px;
+    border-radius: 10px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-size: 1.8rem;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .add-btn:active { background: var(--primary-dk); }
+
+  /* ===== SYNC BUTTON ===== */
+  .sync-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.5);
+    color: white;
+    border-radius: 8px;
+    padding: 0 14px;
+    height: 36px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .sync-btn:active { background: rgba(255,255,255,0.3); }
+  .sync-btn.syncing { opacity: 0.6; cursor: default; }
+
+  /* ===== URL MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: white;
+    border-radius: 14px;
+    padding: 24px 20px 20px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .modal-box h2 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .modal-box p  { font-size: 0.8rem; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .modal-url-input {
+    width: 100%; height: 44px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .modal-url-input:focus { border-color: var(--primary); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-cancel {
+    height: 40px; padding: 0 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px; background: white;
+    color: var(--muted); font-size: 0.88rem;
+    cursor: pointer; font-family: inherit;
+    touch-action: manipulation;
+  }
+  .modal-confirm {
+    height: 40px; padding: 0 18px;
+    border: none; border-radius: 8px;
+    background: var(--primary); color: white;
+    font-size: 0.88rem; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    touch-action: manipulation;
+  }
+  .version-tag {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+    padding: 4px 0 0;
+    opacity: 0.4;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-top">
+    <span class="run-icon">🏃</span>
+    <div>
+      <h1>Running</h1>
+    </div>
+    <button class="sync-btn" id="sync-btn" onclick="openSettings()">⚙</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-value" id="stat-count">0</span>
+      <span class="stat-label">次</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-dist">0</span>
+      <span class="stat-label">總距離(m)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-pace">—</span>
+      <span class="stat-label">平均配速/km</span>
+    </div>
+  </div>
+
+  <div class="col-labels">
+    <span class="col-label">日期時間</span>
+    <span class="col-label">距離(m)</span>
+    <span class="col-label">時間(MM:SS.cc)</span>
+    <span class="col-label">配速</span>
+  </div>
+
+  <div class="records-list" id="records-list"></div>
+  <div class="empty-state" id="empty-state">還沒有紀錄，開始第一次跑步吧！</div>
+</main>
+
+<footer class="input-panel">
+  <div class="stopwatch-row">
+    <button class="sw-btn" id="sw-startstop" onclick="swStartStop()">開始</button>
+    <button class="sw-btn" id="sw-reset" onclick="swReset()" disabled>重置</button>
+    <span class="sw-display" id="sw-display">00:00.00</span>
+  </div>
+
+  <!-- Row 1: date + distance -->
+  <div class="field-row">
+    <input type="datetime-local" id="input-date" class="input-field input-date">
+    <input type="number" id="input-dist" class="input-field input-distance"
+           placeholder="距離 m" step="1" min="0" inputmode="numeric">
+  </div>
+
+  <!-- Row 2: presets -->
+  <div class="preset-row">
+    <button class="preset-btn" onclick="setPreset(100)">100</button>
+    <button class="preset-btn" onclick="setPreset(200)">200</button>
+    <button class="preset-btn" onclick="setPreset(400)">400</button>
+    <button class="preset-btn" onclick="setPreset(500)">500</button>
+    <button class="preset-btn" onclick="setPreset(1000)">1000</button>
+  </div>
+
+  <!-- Row 3: MM:SS.cc + add -->
+  <div class="time-row">
+    <div class="time-group">
+      <input type="number" id="input-mm" class="time-part" placeholder="MM" min="0" inputmode="numeric">
+      <span class="time-sep">:</span>
+      <input type="number" id="input-ss" class="time-part" placeholder="SS" min="0" max="59" inputmode="numeric">
+      <span class="time-sep">.</span>
+      <input type="number" id="input-cc" class="time-part" placeholder="cc" min="0" max="99" inputmode="numeric">
+    </div>
+    <button class="add-btn" onclick="addRecord()">+</button>
+  </div>
+  <div style="height: 16px"></div>
+  <div class="version-tag">v2026.05.01-5</div>
+</footer>
+
+<script>
+// ===== Storage =====
+const STORAGE_KEY = 'running-records';
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveRecords(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+}
+
+// ===== Utils =====
+function todayISO() {
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ms → "MM:SS.cc"
+function formatTimeMs(ms) {
+  const totalCs = Math.floor(ms / 10);
+  const cc = totalCs % 100;
+  const totalSec = Math.floor(totalCs / 100);
+  const ss = totalSec % 60;
+  const mm = Math.floor(totalSec / 60);
+  return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}.${String(cc).padStart(2,'0')}`;
+}
+
+// mm/ss/cc strings → total ms
+function parseDuration(mm, ss, cc) {
+  return ((parseInt(mm)||0) * 60 + (parseInt(ss)||0)) * 1000 + (parseInt(cc)||0) * 10;
+}
+
+// pace: ms elapsed, m distance → "M'SS"/km"
+function calcPace(ms, m) {
+  if (!m || !ms) return '—';
+  const secPerKm = (ms / 1000) / (m / 1000);
+  const pm = Math.floor(secPerKm / 60);
+  const ps = Math.round(secPerKm % 60);
+  return `${pm}'${String(ps).padStart(2,'0')}"`;
+}
+
+function fmtDate(val) {
+  if (!val) return '';
+  const [datePart, timePart] = val.split('T');
+  const [, m, d] = datePart.split('-');
+  return timePart ? `${m}/${d} ${timePart}` : `${m}/${d}`;
+}
+
+// ===== Render =====
+function renderRecords() {
+  const records = loadRecords();
+  const list  = document.getElementById('records-list');
+  const empty = document.getElementById('empty-state');
+
+  list.innerHTML = '';
+  empty.style.display = records.length ? 'none' : 'block';
+
+  const totalMs   = records.reduce((s, r) => s + r.ms, 0);
+  const totalDist = records.reduce((s, r) => s + r.distance, 0);
+  document.getElementById('stat-count').textContent = records.length;
+  document.getElementById('stat-dist').textContent  = totalDist;
+  document.getElementById('stat-pace').textContent  = calcPace(totalMs, totalDist);
+
+  [...records].sort((a, b) => b.id - a.id).forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'record-row';
+    row.dataset.id = r.id;
+    row.innerHTML = `
+      <div class="delete-bg"><button class="delete-bg-btn" onclick="confirmDelete(${r.id})" ontouchend="event.preventDefault();confirmDelete(${r.id})">✕</button></div>
+      <div class="record-inner">
+        <span class="record-date">${fmtDate(r.date)}</span>
+        <span class="record-dist">${r.distance}</span>
+        <span class="record-time">${formatTimeMs(r.ms)}</span>
+        <span class="record-pace">${calcPace(r.ms, r.distance)}/km</span>
+      </div>
+      <button class="delete-btn-desktop" onclick="confirmDelete(${r.id})" title="刪除">×</button>
+    `;
+    attachSwipeHandlers(row, r.id);
+    list.appendChild(row);
+  });
+}
+
+// ===== Add / Delete =====
+function addRecord() {
+  const dateEl = document.getElementById('input-date');
+  const distEl = document.getElementById('input-dist');
+  const mmEl   = document.getElementById('input-mm');
+  const ssEl   = document.getElementById('input-ss');
+  const ccEl   = document.getElementById('input-cc');
+
+  let valid = true;
+  if (!dateEl.value) { flash(dateEl); valid = false; }
+
+  const dist = parseInt(distEl.value);
+  if (!distEl.value || isNaN(dist) || dist <= 0) { flash(distEl); valid = false; }
+
+  const ms = parseDuration(mmEl.value, ssEl.value, ccEl.value);
+  if (ms <= 0) { flash(mmEl); flash(ssEl); flash(ccEl); valid = false; }
+
+  if (!valid) return;
+
+  const records = loadRecords();
+  const newRecord = { id: Date.now(), date: dateEl.value, distance: dist, ms };
+  records.push(newRecord);
+  saveRecords(records);
+  sendRecordToSheets(newRecord);
+
+  mmEl.value = ''; ssEl.value = ''; ccEl.value = '';
+  dateEl.value = todayISO();
+  setPreset(400);
+  renderRecords();
+}
+
+function confirmDelete(id) {
+  const modal = document.getElementById('confirm-modal');
+  modal.dataset.pendingId = id;
+  setTimeout(() => modal.classList.add('show'), 50);
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirm-modal').classList.remove('show');
+}
+
+function executeDelete() {
+  const modal = document.getElementById('confirm-modal');
+  const id = Number(modal.dataset.pendingId);
+  modal.classList.remove('show');
+  saveRecords(loadRecords().filter(r => r.id !== id));
+  renderRecords();
+  deleteRecordFromSheets(id);
+}
+
+function deleteRecord(id) {
+  confirmDelete(id);
+}
+
+async function deleteRecordFromSheets(id) {
+  const url = localStorage.getItem(SCRIPT_URL_KEY);
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id }),
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow'
+    });
+  } catch(err) {
+    console.error('Sheets 刪除失敗:', err);
+  }
+}
+
+function flash(el) {
+  el.classList.remove('invalid');
+  void el.offsetWidth;
+  el.classList.add('invalid');
+  setTimeout(() => el.classList.remove('invalid'), 600);
+}
+
+// ===== Swipe to reveal delete button =====
+let _revealedRow = null;
+
+function closeRevealedRow() {
+  if (_revealedRow) {
+    const inner = _revealedRow.querySelector('.record-inner');
+    inner.style.transition = '';
+    inner.style.transform = '';
+    _revealedRow = null;
+  }
+}
+
+function attachSwipeHandlers(row, id) {
+  const inner = row.querySelector('.record-inner');
+  const REVEAL = -72;
+  const THRESHOLD = 40;
+  let startX = 0, startY = 0, dx = 0, swiping = false, revealed = false;
+
+  row.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dx = 0; swiping = false;
+    inner.style.transition = 'none';
+  }, { passive: true });
+
+  row.addEventListener('touchmove', e => {
+    const ddx = e.touches[0].clientX - startX;
+    const ddy = e.touches[0].clientY - startY;
+    if (!swiping && Math.abs(ddy) > Math.abs(ddx)) return;
+    swiping = true;
+    dx = ddx;
+    const base = revealed ? REVEAL : 0;
+    const x = Math.min(0, Math.max(REVEAL, base + dx));
+    inner.style.transform = `translateX(${x}px)`;
+  }, { passive: true });
+
+  row.addEventListener('touchend', () => {
+    inner.style.transition = '';
+    if (!swiping) {
+      // pure tap: close if revealed
+      if (revealed) { closeRevealedRow(); revealed = false; }
+      return;
+    }
+    const base = revealed ? REVEAL : 0;
+    const finalX = Math.min(0, Math.max(REVEAL, base + dx));
+    if (finalX < -THRESHOLD) {
+      // close any other open row first
+      if (_revealedRow && _revealedRow !== row) closeRevealedRow();
+      inner.style.transform = `translateX(${REVEAL}px)`;
+      revealed = true;
+      _revealedRow = row;
+    } else {
+      inner.style.transform = '';
+      revealed = false;
+      if (_revealedRow === row) _revealedRow = null;
+    }
+  });
+}
+
+// tap outside to close revealed row
+document.addEventListener('touchstart', e => {
+  if (_revealedRow && !_revealedRow.contains(e.target)) closeRevealedRow();
+}, { passive: true });
+
+// ===== Preset buttons =====
+function setPreset(m) {
+  document.getElementById('input-dist').value = m;
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.textContent) === m);
+  });
+}
+document.getElementById('input-dist').addEventListener('input', () => {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+});
+
+// ===== Auto-advance: SS → CC when 2 digits typed =====
+document.getElementById('input-ss').addEventListener('input', function() {
+  if (this.value.length >= 2 || parseInt(this.value) > 5) {
+    document.getElementById('input-cc').focus();
+  }
+});
+
+// ===== Stopwatch (Date.now() based for accuracy) =====
+let swAccMs   = 0;       // accumulated ms from previous runs
+let swStart   = null;    // Date.now() when last started
+let swRunning = false;
+let swInterval = null;
+
+function swGetElapsed() {
+  return swRunning ? swAccMs + (Date.now() - swStart) : swAccMs;
+}
+
+function swUpdateDisplay() {
+  document.getElementById('sw-display').textContent = formatTimeMs(swGetElapsed());
+}
+
+function swStartStop() {
+  const btn      = document.getElementById('sw-startstop');
+  const resetBtn = document.getElementById('sw-reset');
+
+  if (!swRunning) {
+    swStart   = Date.now();
+    swRunning = true;
+    swInterval = setInterval(swUpdateDisplay, 10);
+    btn.textContent = '暫停';
+    btn.classList.add('running');
+    resetBtn.disabled = false;
+  } else {
+    swAccMs  += Date.now() - swStart;
+    swRunning = false;
+    clearInterval(swInterval);
+    swUpdateDisplay();
+    btn.textContent = '繼續';
+    btn.classList.remove('running');
+    swFill();
+  }
+}
+
+function swReset() {
+  clearInterval(swInterval);
+  swRunning = false; swAccMs = 0; swStart = null;
+  document.getElementById('sw-display').textContent = '00:00.00';
+  document.getElementById('sw-startstop').textContent = '開始';
+  document.getElementById('sw-startstop').classList.remove('running');
+  document.getElementById('sw-reset').disabled = true;
+}
+
+function swFill() {
+  const total = swGetElapsed();
+  const totalCs = Math.floor(total / 10);
+  const cc = totalCs % 100;
+  const totalSec = Math.floor(totalCs / 100);
+  const ss = totalSec % 60;
+  const mm = Math.floor(totalSec / 60);
+  document.getElementById('input-mm').value = String(mm).padStart(2,'0');
+  document.getElementById('input-ss').value = String(ss).padStart(2,'0');
+  document.getElementById('input-cc').value = String(cc).padStart(2,'0');
+}
+
+// ===== Google Sheets Integration =====
+const SCRIPT_URL_KEY = 'gs-script-url';
+
+function openSettings() {
+  document.getElementById('modal-url-input').value = localStorage.getItem(SCRIPT_URL_KEY) || '';
+  document.getElementById('url-modal').classList.add('show');
+  setTimeout(() => document.getElementById('modal-url-input').focus(), 100);
+}
+
+function closeUrlModal() {
+  document.getElementById('url-modal').classList.remove('show');
+}
+
+function confirmUrl() {
+  const url = document.getElementById('modal-url-input').value.trim();
+  if (!url) return;
+  localStorage.setItem(SCRIPT_URL_KEY, url);
+  closeUrlModal();
+}
+
+// 新增記錄後靜默寫入 Sheets（不影響主流程）
+async function sendRecordToSheets(record) {
+  const url = localStorage.getItem(SCRIPT_URL_KEY);
+  if (!url) return;
+
+  const btn = document.querySelector('.add-btn');
+  btn.textContent = '…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add', record }),
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow'
+    });
+    const json = await res.json();
+    if (json.status === 'ok') {
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = '+'; btn.disabled = false; }, 1500);
+    } else {
+      throw new Error(json.status);
+    }
+  } catch(err) {
+    console.error('Sheets 寫入失敗:', err);
+    btn.textContent = '!';
+    btn.style.background = 'var(--danger)';
+    setTimeout(() => {
+      btn.textContent = '+';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 2500);
+  }
+}
+
+// ===== Init =====
+document.getElementById('input-date').value = todayISO();
+setPreset(400);
+renderRecords();
+</script>
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-box">
+    <h2>確認刪除</h2>
+    <p>確定要刪除這筆記錄嗎？<br>此操作無法復原。</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeConfirmModal()">取消</button>
+      <button class="modal-confirm" style="background:var(--danger)" onclick="executeDelete()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- URL Modal -->
+<div class="modal-overlay" id="url-modal">
+  <div class="modal-box">
+    <h2>Google Sheets 設定</h2>
+    <p>貼上 Apps Script 部署網址後，每次按 + 新增記錄時會自動寫入試算表。<br>（開頭為 https://script.google.com/macros/s/…）</p>
+    <input class="modal-url-input" id="modal-url-input" type="url"
+           placeholder="https://script.google.com/macros/s/…">
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeUrlModal()">取消</button>
+      <button class="modal-confirm" onclick="confirmUrl()">確認</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
