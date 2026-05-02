@@ -470,7 +470,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.02-4</div>
+  <div class="version-tag">v2026.05.02-5</div>
 </footer>
 
 <script>
@@ -581,7 +581,7 @@ function calcPace(ms, m) {
 function calcSpeed(ms, km) {
   if (!km || !ms) return '—';
   const h = ms / 3600000;
-  return (km / h).toFixed(1) + ' km/h';
+  return (km / h).toFixed(1);
 }
 
 function calcMetric(ms, dist) {
