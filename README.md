@@ -1,12 +1,10 @@
 # Exercise Tracker / 運動記錄
 
-A lightweight, single-file web app for logging running and cycling workouts, with optional Google Sheets sync.
-
-輕量級單檔網頁應用，用於記錄跑步與騎車運動，支援 Google 試算表同步。
-
 ---
 
 ## English
+
+A lightweight, single-file web app for logging running and cycling workouts, with optional Google Sheets sync.
 
 ### Features
 
@@ -26,22 +24,21 @@ python3 -m http.server 3001
 
 ### Google Sheets Integration
 
-1. Create a Google Apps Script project and paste the script from the [Apps Script Setup](#apps-script-setup) section below
-2. Deploy as a web app (Execute as: Me, Who has access: Anyone)
-3. Copy the deployment URL
-4. Open the app, tap ⚙, and paste the URL
+1. Create a Google Spreadsheet with two sheets named `running` and `bike`
+2. Open Apps Script (Extensions → Apps Script), paste the code from the section below
+3. Deploy as a web app (Execute as: Me, Who has access: Anyone)
+4. Copy the deployment URL
+5. Open the app, tap ⚙, and paste the URL
 
 Once configured, every new record is sent to Sheets automatically, and the ↻ button syncs all records back from Sheets.
 
-### Apps Script Setup
-
-Create a new Apps Script project bound to your spreadsheet (which must have sheets named `running` and `bike`), then paste:
+### Apps Script
 
 ```javascript
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.openById('YOUR_SPREADSHEET_ID');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (data.action === 'getAll') {
       return json({
@@ -106,6 +103,8 @@ function json(obj) {
 
 ## 中文
 
+輕量級單檔網頁應用，用於記錄跑步與騎車運動，支援 Google 試算表同步。
+
 ### 功能特色
 
 - **兩種運動頁籤** — 跑步（公尺、配速 min/km）與騎車（公里、速度 km/h）
@@ -124,15 +123,12 @@ python3 -m http.server 3001
 
 ### Google 試算表設定
 
-1. 建立 Google Apps Script 專案，貼上下方程式碼（試算表需有 `running` 與 `bike` 兩個分頁）
-2. 部署為網路應用程式（執行身分：我、存取權限：任何人）
-3. 複製部署網址
-4. 在 App 中點 ⚙，貼上網址後確認
+1. 建立 Google 試算表，新增兩個分頁分別命名為 `running` 與 `bike`
+2. 開啟 Apps Script（擴充功能 → Apps Script），貼上上方英文區的程式碼
+3. 部署為網路應用程式（執行身分：我、存取權限：任何人）
+4. 複製部署網址
+5. 在 App 中點 ⚙，貼上網址後確認
 
 設定完成後，每筆新記錄會自動寫入試算表；點 ↻ 可隨時從試算表同步回本地。
-
-### Apps Script 程式碼
-
-同上方英文區的程式碼，將 `YOUR_SPREADSHEET_ID` 替換為你的試算表 ID（從試算表網址中取得）。
 
 > 每次修改 script 後，需在「部署 → 管理部署」中建立**新版本**才會生效。
