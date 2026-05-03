@@ -337,6 +337,8 @@
     transition: background 0.15s;
   }
   .sync-btn:active { background: rgba(255,255,255,0.3); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sync-spinning { display: inline-block; animation: spin 0.8s linear infinite; }
 
   /* ===== URL MODAL ===== */
   .modal-overlay {
@@ -405,7 +407,7 @@
     <div>
       <h1 id="header-title">Running</h1>
     </div>
-    <button class="sync-btn" id="manual-sync-btn" onclick="fetchAllFromSheets()">↻</button>
+    <button class="sync-btn" id="manual-sync-btn" onclick="fetchAllFromSheets()"><span id="sync-icon">↻</span></button>
     <button class="sync-btn" id="sync-btn" style="margin-left:8px" onclick="openSettings()">⚙</button>
   </div>
 </header>
@@ -471,7 +473,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.03-3</div>
+  <div class="version-tag">v2026.05.03-6</div>
 </footer>
 
 <script>
@@ -617,7 +619,7 @@ function renderRecords() {
   const totalDist = records.reduce((s, r) => s + r.distance, 0);
   document.getElementById('stat-count').textContent  = records.length;
   document.getElementById('stat-dist').textContent   = currentTab === 'bike'
-    ? totalDist.toFixed(1) : totalDist;
+    ? parseFloat(totalDist.toFixed(2)) : totalDist;
   document.getElementById('stat-metric').textContent = calcMetric(totalMs, totalDist);
 
   [...records].sort((a, b) => b.id - a.id).forEach(r => {
@@ -627,8 +629,7 @@ function renderRecords() {
     const metricStr = currentTab === 'bike'
       ? calcSpeed(r.ms, r.distance)
       : calcPace(r.ms, r.distance) + '/km';
-    const distStr = currentTab === 'bike'
-      ? r.distance.toFixed(1) : r.distance;
+    const distStr = r.distance;
     row.innerHTML = `
       <div class="delete-bg"><button class="delete-bg-btn" onclick="confirmDelete(${r.id})" ontouchend="event.preventDefault();confirmDelete(${r.id})">✕</button></div>
       <div class="record-inner">
@@ -984,8 +985,9 @@ async function fetchAllFromSheets() {
   const url = localStorage.getItem(SCRIPT_URL_KEY);
   if (!url) return;
 
-  const syncBtn = document.getElementById('manual-sync-btn');
-  syncBtn.textContent = '↻';
+  const syncBtn  = document.getElementById('manual-sync-btn');
+  const syncIcon = document.getElementById('sync-icon');
+  syncIcon.classList.add('sync-spinning');
   syncBtn.disabled = true;
 
   try {
@@ -1000,11 +1002,14 @@ async function fetchAllFromSheets() {
     if (bikeJson.status === 'ok') localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(bikeJson.records));
 
     renderRecords();
+    syncIcon.classList.remove('sync-spinning');
+    syncIcon.textContent = '✓';
+    setTimeout(() => { syncIcon.textContent = '↻'; syncBtn.disabled = false; }, 1500);
   } catch(err) {
     console.error('Sheets 同步失敗:', err);
-  } finally {
-    syncBtn.textContent = '↻';
-    syncBtn.disabled = false;
+    syncIcon.classList.remove('sync-spinning');
+    syncIcon.textContent = '!';
+    setTimeout(() => { syncIcon.textContent = '↻'; syncBtn.disabled = false; }, 2000);
   }
 }
 
