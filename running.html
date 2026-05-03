@@ -470,7 +470,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.02-5</div>
+  <div class="version-tag">v2026.05.03-1</div>
 </footer>
 
 <script>
@@ -978,11 +978,41 @@ async function sendRecordToSheets(record) {
   }
 }
 
+// ===== Sync from Sheets on load =====
+async function fetchAllFromSheets() {
+  const url = localStorage.getItem(SCRIPT_URL_KEY);
+  if (!url) return;
+
+  const syncBtn = document.getElementById('sync-btn');
+  syncBtn.textContent = '↻';
+  syncBtn.disabled = true;
+
+  try {
+    const [runRes, bikeRes] = await Promise.all([
+      fetch(url, { method: 'POST', body: JSON.stringify({ action: 'getAll', tab: 'running' }), headers: { 'Content-Type': 'text/plain' }, redirect: 'follow' }),
+      fetch(url, { method: 'POST', body: JSON.stringify({ action: 'getAll', tab: 'bike'    }), headers: { 'Content-Type': 'text/plain' }, redirect: 'follow' })
+    ]);
+    const runJson  = await runRes.json();
+    const bikeJson = await bikeRes.json();
+
+    if (runJson.status  === 'ok') localStorage.setItem(TAB_CONFIG.running.storageKey, JSON.stringify(runJson.records));
+    if (bikeJson.status === 'ok') localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(bikeJson.records));
+
+    renderRecords();
+  } catch(err) {
+    console.error('Sheets 同步失敗:', err);
+  } finally {
+    syncBtn.textContent = '⚙';
+    syncBtn.disabled = false;
+  }
+}
+
 // ===== Init =====
 document.getElementById('input-date').value = todayISO();
 renderPresets();
 setPreset(cfg().defaultPreset);
 renderRecords();
+fetchAllFromSheets();
 </script>
 
 <!-- Confirm Delete Modal -->
