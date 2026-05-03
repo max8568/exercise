@@ -496,7 +496,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.03-9</div>
+  <div class="version-tag">v2026.05.04-1</div>
 </footer>
 
 <script>
@@ -1004,34 +1004,39 @@ async function sendRecordToSheets(record) {
 }
 
 // ===== Sync from Sheets on load =====
-async function fetchAllFromSheets() {
+async function fetchAllFromSheets(retrying = false) {
   const url = localStorage.getItem(SCRIPT_URL_KEY);
   if (!url) return;
 
   const syncBtn  = document.getElementById('manual-sync-btn');
   const syncIcon = document.getElementById('sync-icon');
-  syncIcon.classList.add('sync-spinning');
-  syncBtn.disabled = true;
+  if (!retrying) {
+    syncIcon.classList.add('sync-spinning');
+    syncBtn.disabled = true;
+  }
 
   try {
-    const [runRes, bikeRes] = await Promise.all([
-      fetch(url, { method: 'POST', body: JSON.stringify({ action: 'getAll', tab: 'running' }), headers: { 'Content-Type': 'text/plain' }, redirect: 'follow' }),
-      fetch(url, { method: 'POST', body: JSON.stringify({ action: 'getAll', tab: 'bike'    }), headers: { 'Content-Type': 'text/plain' }, redirect: 'follow' })
-    ]);
-    const runJson  = await runRes.json();
-    const bikeJson = await bikeRes.json();
+    const res  = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getAll' }),
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow'
+    });
+    const data = await res.json();
+    if (data.status !== 'ok') throw new Error(data.message || data.status);
 
-    if (runJson.status  !== 'ok') throw new Error(runJson.message  || runJson.status);
-    if (bikeJson.status !== 'ok') throw new Error(bikeJson.message || bikeJson.status);
-
-    localStorage.setItem(TAB_CONFIG.running.storageKey, JSON.stringify(runJson.records));
-    localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(bikeJson.records));
+    localStorage.setItem(TAB_CONFIG.running.storageKey, JSON.stringify(data.running));
+    localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(data.bike));
 
     renderRecords();
     syncIcon.classList.remove('sync-spinning');
     syncIcon.textContent = '✓';
     setTimeout(() => { syncIcon.textContent = '↻'; syncBtn.disabled = false; }, 1500);
   } catch(err) {
+    if (!retrying) {
+      setTimeout(() => fetchAllFromSheets(true), 1500);
+      return;
+    }
     console.error('Sheets 同步失敗:', err);
     syncIcon.classList.remove('sync-spinning');
     syncIcon.textContent = '!';
