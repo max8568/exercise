@@ -406,7 +406,7 @@
       <h1 id="header-title">Running</h1>
     </div>
     <button class="sync-btn" id="manual-sync-btn" onclick="fetchAllFromSheets()">↻</button>
-    <button class="sync-btn" id="sync-btn" onclick="openSettings()">⚙</button>
+    <button class="sync-btn" id="sync-btn" style="margin-left:8px" onclick="openSettings()">⚙</button>
   </div>
 </header>
 
@@ -471,7 +471,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.03-2</div>
+  <div class="version-tag">v2026.05.03-3</div>
 </footer>
 
 <script>
@@ -1003,7 +1003,7 @@ async function fetchAllFromSheets() {
   } catch(err) {
     console.error('Sheets 同步失敗:', err);
   } finally {
-    syncBtn.textContent = '⚙';
+    syncBtn.textContent = '↻';
     syncBtn.disabled = false;
   }
 }
