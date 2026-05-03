@@ -1,8 +1,4 @@
-# Exercise Tracker / 運動記錄
-
----
-
-## English
+# Exercise Tracker
 
 A lightweight, single-file web app for logging running and cycling workouts, with optional Google Sheets sync.
 
@@ -101,7 +97,7 @@ function json(obj) {
 
 ---
 
-## 中文
+# 運動記錄
 
 輕量級單檔網頁應用，用於記錄跑步與騎車運動，支援 Google 試算表同步。
 
