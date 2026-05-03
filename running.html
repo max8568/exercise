@@ -184,6 +184,8 @@
     letter-spacing: 0.02em;
     min-width: 96px;
     font-feature-settings: "tnum";
+    text-align: center;
+    flex: 1;
   }
   .sw-btn {
     height: 36px;
@@ -340,6 +342,25 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .sync-spinning { display: inline-block; animation: spin 0.8s linear infinite; }
 
+  /* ===== ERROR TOAST ===== */
+  .error-toast {
+    position: fixed;
+    top: 12px; left: 50%; transform: translateX(-50%);
+    background: var(--danger);
+    color: white;
+    font-size: 0.82rem;
+    padding: 10px 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 300;
+    max-width: calc(100vw - 32px);
+    word-break: break-all;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .error-toast.show { opacity: 1; pointer-events: auto; }
+
   /* ===== URL MODAL ===== */
   .modal-overlay {
     display: none;
@@ -473,7 +494,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.03-6</div>
+  <div class="version-tag">v2026.05.03-8</div>
 </footer>
 
 <script>
@@ -998,8 +1019,11 @@ async function fetchAllFromSheets() {
     const runJson  = await runRes.json();
     const bikeJson = await bikeRes.json();
 
-    if (runJson.status  === 'ok') localStorage.setItem(TAB_CONFIG.running.storageKey, JSON.stringify(runJson.records));
-    if (bikeJson.status === 'ok') localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(bikeJson.records));
+    if (runJson.status  !== 'ok') throw new Error(runJson.message  || runJson.status);
+    if (bikeJson.status !== 'ok') throw new Error(bikeJson.message || bikeJson.status);
+
+    localStorage.setItem(TAB_CONFIG.running.storageKey, JSON.stringify(runJson.records));
+    localStorage.setItem(TAB_CONFIG.bike.storageKey,    JSON.stringify(bikeJson.records));
 
     renderRecords();
     syncIcon.classList.remove('sync-spinning');
@@ -1009,8 +1033,19 @@ async function fetchAllFromSheets() {
     console.error('Sheets 同步失敗:', err);
     syncIcon.classList.remove('sync-spinning');
     syncIcon.textContent = '!';
+    showSyncError(err.message || err.toString());
     setTimeout(() => { syncIcon.textContent = '↻'; syncBtn.disabled = false; }, 2000);
   }
+}
+
+// ===== Error toast =====
+let _toastTimer = null;
+function showSyncError(msg) {
+  const toast = document.getElementById('error-toast');
+  toast.textContent = '同步失敗：' + msg;
+  toast.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
 }
 
 // ===== Init =====
@@ -1046,5 +1081,7 @@ fetchAllFromSheets();
     </div>
   </div>
 </div>
+
+<div class="error-toast" id="error-toast"></div>
 </body>
 </html>
