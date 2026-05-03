@@ -171,21 +171,23 @@
 
   /* --- Stopwatch row --- */
   .stopwatch-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 10px;
   }
   .sw-display {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 1.2rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--primary);
     letter-spacing: 0.02em;
-    min-width: 96px;
     font-feature-settings: "tnum";
-    text-align: center;
-    flex: 1;
+    pointer-events: none;
   }
   .sw-btn {
     height: 36px;
@@ -494,7 +496,7 @@
     <button class="add-btn" onclick="addRecord()">+</button>
   </div>
   <div style="height: 16px"></div>
-  <div class="version-tag">v2026.05.03-8</div>
+  <div class="version-tag">v2026.05.03-9</div>
 </footer>
 
 <script>
