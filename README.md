@@ -15,7 +15,7 @@ A lightweight, single-file web app for logging running and cycling workouts, wit
 
 ```bash
 python3 -m http.server 3001
-# Open http://localhost:3001/running.html
+# Open http://localhost:3001/record.html
 ```
 
 ### Google Sheets Integration
@@ -114,7 +114,7 @@ function json(obj) {
 
 ```bash
 python3 -m http.server 3001
-# 開啟 http://localhost:3001/running.html
+# 開啟 http://localhost:3001/record.html
 ```
 
 ### Google 試算表設定
